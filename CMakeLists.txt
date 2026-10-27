@@ -46,6 +46,10 @@ target_include_directories(poseforge PUBLIC include)
 target_include_directories(poseforge SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(poseforge PUBLIC ${OpenCV_LIBS} Threads::Threads PRIVATE poseforge_warnings)
 
+add_executable(poseforge_cli apps/poseforge.cpp)
+set_target_properties(poseforge_cli PROPERTIES OUTPUT_NAME poseforge)
+target_link_libraries(poseforge_cli PRIVATE poseforge poseforge_warnings)
+
 if(POSEFORGE_BUILD_TESTS)
   enable_testing()
   find_package(GTest REQUIRED)
