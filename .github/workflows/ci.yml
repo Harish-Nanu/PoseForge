@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    # Same OS as the dev machine, so CI gets OpenCV 4.10 with the built-in ArUco detector.
+    container: ubuntu:26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: release, build_type: Release, sanitizer: "" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends \
+            g++ cmake ninja-build pkg-config libopencv-dev libgtest-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DPOSEFORGE_SANITIZER=${{ matrix.sanitizer }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
