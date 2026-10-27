@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <opencv2/core.hpp>
 
 namespace poseforge {
@@ -17,6 +19,11 @@ struct CameraIntrinsics {
 
     // Ideal camera (no distortion) with the given horizontal field of view in degrees.
     static CameraIntrinsics from_fov(cv::Size size, double horizontal_fov_deg);
+
+    // Loads a calibration in OpenCV's YAML/XML format (the output of the OpenCV calibration
+    // sample): camera_matrix, distortion_coefficients, image_width, image_height.
+    static CameraIntrinsics load(const std::string& path);
+    void save(const std::string& path) const;
 };
 
 }  // namespace poseforge

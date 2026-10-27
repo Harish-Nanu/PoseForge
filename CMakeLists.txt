@@ -33,19 +33,37 @@ endif()
 
 add_library(poseforge
   src/camera.cpp
+  src/detector.cpp
+  src/synthetic.cpp
+  src/pose.cpp
+  src/render.cpp
+  src/stats.cpp
+  src/frame_io.cpp
+  src/pipeline.cpp
 )
 target_include_directories(poseforge PUBLIC include)
 # OpenCV headers are treated as system headers so our strict warnings don't fire on them.
 target_include_directories(poseforge SYSTEM PUBLIC ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(poseforge PUBLIC ${OpenCV_LIBS} Threads::Threads PRIVATE poseforge_warnings)
 
+add_executable(poseforge_cli apps/poseforge.cpp)
+set_target_properties(poseforge_cli PROPERTIES OUTPUT_NAME poseforge)
+target_link_libraries(poseforge_cli PRIVATE poseforge poseforge_warnings)
+
 if(POSEFORGE_BUILD_TESTS)
   enable_testing()
   find_package(GTest REQUIRED)
   add_executable(poseforge_tests
+    tests/main.cpp
     tests/test_camera.cpp
+    tests/test_detector.cpp
+    tests/test_pose.cpp
+    tests/test_render.cpp
+    tests/test_stats.cpp
+    tests/test_bounded_queue.cpp
+    tests/test_pipeline.cpp
   )
-  target_link_libraries(poseforge_tests PRIVATE poseforge poseforge_warnings GTest::gtest_main)
+  target_link_libraries(poseforge_tests PRIVATE poseforge poseforge_warnings GTest::gtest)
   include(GoogleTest)
   gtest_discover_tests(poseforge_tests)
 endif()

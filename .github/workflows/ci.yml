@@ -11,28 +11,72 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
     # Same OS as the dev machine, so CI gets OpenCV 4.10 with the built-in ArUco detector.
-    container: ubuntu:26.04
+    # Sanitizer jobs run privileged so TSan can lower ASLR entropy and LSan can stop threads.
+    container:
+      image: ubuntu:26.04
+      options: ${{ matrix.container_options }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: release, build_type: Release, sanitizer: "" }
+          - name: release
+            build_type: Release
+            sanitizer: ""
+            container_options: ""
+          - name: asan-ubsan
+            build_type: RelWithDebInfo
+            sanitizer: address
+            container_options: --privileged
+          - name: tsan
+            build_type: RelWithDebInfo
+            sanitizer: thread
+            container_options: --privileged
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
     steps:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        env:
-          DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends \
             g++ cmake ninja-build pkg-config libopencv-dev libgtest-dev
 
+      - name: Lower ASLR entropy for TSan
+        if: matrix.sanitizer == 'thread'
+        run: sysctl -w vm.mmap_rnd_bits=28 || echo "could not change vm.mmap_rnd_bits"
+
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DPOSEFORGE_SANITIZER=${{ matrix.sanitizer }}
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DPOSEFORGE_SANITIZER=${{ matrix.sanitizer }}
 
       - name: Build
         run: cmake --build build
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        # OpenCV's TBB thread pool is not TSan-instrumented; run it serially so TSan checks
+        # PoseForge's own threads (see tests/main.cpp).
+        env:
+          POSEFORGE_SERIAL_OPENCV: ${{ matrix.sanitizer == 'thread' && '1' || '0' }}
+        run: ctest --test-dir build --output-on-failure -j "$(nproc)"
+
+      - name: Benchmark and demo smoke test
+        if: matrix.name == 'release'
+        run: |
+          ./build/poseforge bench --frames 120 --width 960 --height 540 --workers 1,2,4 --json bench.json
+          ./build/poseforge run --synthetic 30 --mode pipelined --workers 2 --out demo.mp4
+          ./build/poseforge generate-marker --id 7 --out marker_7.png
+
+      - name: Upload benchmark and demo
+        if: matrix.name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: poseforge-bench
+          path: |
+            bench.json
+            demo.mp4
+            marker_7.png
