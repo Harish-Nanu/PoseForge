@@ -24,4 +24,43 @@ CameraIntrinsics CameraIntrinsics::from_fov(cv::Size size, double horizontal_fov
     return cam;
 }
 
+CameraIntrinsics CameraIntrinsics::load(const std::string& path) {
+    cv::FileStorage fs(path, cv::FileStorage::READ);
+    if (!fs.isOpened()) {
+        throw std::runtime_error("cannot open calibration file: " + path);
+    }
+    cv::Mat K;
+    cv::Mat dist;
+    int width = 0;
+    int height = 0;
+    fs["camera_matrix"] >> K;
+    fs["distortion_coefficients"] >> dist;
+    fs["image_width"] >> width;
+    fs["image_height"] >> height;
+    if (K.rows != 3 || K.cols != 3) {
+        throw std::runtime_error("calibration file has no 3x3 camera_matrix: " + path);
+    }
+
+    CameraIntrinsics cam;
+    K.convertTo(K, CV_64F);
+    cam.K = cv::Matx33d(K);
+    if (!dist.empty()) {
+        dist.convertTo(cam.distortion, CV_64F);
+        cam.distortion = cam.distortion.reshape(1, 1);
+    }
+    cam.image_size = {width, height};
+    return cam;
+}
+
+void CameraIntrinsics::save(const std::string& path) const {
+    cv::FileStorage fs(path, cv::FileStorage::WRITE);
+    if (!fs.isOpened()) {
+        throw std::runtime_error("cannot write calibration file: " + path);
+    }
+    fs << "image_width" << image_size.width;
+    fs << "image_height" << image_size.height;
+    fs << "camera_matrix" << cv::Mat(K);
+    fs << "distortion_coefficients" << distortion;
+}
+
 }  // namespace poseforge

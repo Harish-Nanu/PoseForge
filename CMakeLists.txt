@@ -36,6 +36,7 @@ add_library(poseforge
   src/detector.cpp
   src/synthetic.cpp
   src/pose.cpp
+  src/render.cpp
 )
 target_include_directories(poseforge PUBLIC include)
 # OpenCV headers are treated as system headers so our strict warnings don't fire on them.
@@ -49,6 +50,7 @@ if(POSEFORGE_BUILD_TESTS)
     tests/test_camera.cpp
     tests/test_detector.cpp
     tests/test_pose.cpp
+    tests/test_render.cpp
   )
   target_link_libraries(poseforge_tests PRIVATE poseforge poseforge_warnings GTest::gtest_main)
   include(GoogleTest)
