@@ -2,6 +2,8 @@
 #include "poseforge/pose.hpp"
 #include "poseforge/synthetic.hpp"
 
+#include <ostream>
+
 #include <gtest/gtest.h>
 
 using namespace poseforge;
@@ -15,6 +17,9 @@ struct PoseCase {
     Pose pose;
     double noise;
 };
+
+// Readable test names in ctest output instead of a byte dump.
+void PrintTo(const PoseCase& c, std::ostream* os) { *os << c.name; }
 
 class PoseAccuracy : public ::testing::TestWithParam<PoseCase> {};
 
